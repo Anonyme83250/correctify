@@ -1,5 +1,7 @@
 # Correctify Desktop
 
+🌐 **Website & download: [correctify.fr](https://correctify.fr/)**
+
 **AI writing assistant for your whole desktop.** Select text in *any* application —
 Outlook, the new Outlook, Word, Teams, a browser, any text field — press a global
 shortcut, and the selection is replaced in place with a corrected, polished version.
