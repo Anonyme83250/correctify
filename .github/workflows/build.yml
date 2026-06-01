@@ -1,0 +1,94 @@
+# Build de l'installeur Windows + signature de code via SignPath.
+#
+# Déclenché sur un tag « vX.Y.Z » (release) ou manuellement.
+#   1. job `build` : construit l'installeur NSIS (electron-builder) et le publie
+#      en artefact « unsigned-installer ».
+#   2. job `sign`  : envoie cet artefact à SignPath, récupère l'exe signé et
+#      (sur un tag) l'attache à la Release GitHub.
+#
+# Le job `sign` ne s'exécute QUE si la variable de dépôt SIGNPATH_ORGANIZATION_ID
+# est définie : avant la validation de la candidature SignPath, seul le build tourne.
+#
+# À configurer dans GitHub → Settings :
+#   • Variables  : SIGNPATH_ORGANIZATION_ID  (fourni par SignPath)
+#   • Secrets    : SIGNPATH_API_TOKEN        (fourni par SignPath)
+#                  CORRECTIFY_API_KEY        (optionnel — clé du backend correctify.fr ;
+#                                             sans elle, le build n'a pas le contact/stats)
+# Adapter aussi project-slug / signing-policy-slug / artifact-configuration-slug
+# aux valeurs créées dans ton projet SignPath.
+
+name: Build & sign (Windows)
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write   # nécessaire pour attacher l'installeur signé à la Release
+
+jobs:
+  build:
+    runs-on: windows-latest
+    outputs:
+      unsigned-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # La clé HMAC du backend n'est pas versionnée (src/secret.js est gitignoré).
+      # Si le secret CORRECTIFY_API_KEY existe, on régénère secret.js avant le build
+      # pour que l'app livrée garde le formulaire de contact / les stats.
+      # Sinon le build réussit quand même : seules ces fonctions sont désactivées.
+      - name: Inject backend key (optional)
+        shell: pwsh
+        env:
+          CORRECTIFY_API_KEY: ${{ secrets.CORRECTIFY_API_KEY }}
+        run: |
+          if ($env:CORRECTIFY_API_KEY) {
+            Set-Content -Path src/secret.js -Encoding ascii -Value "module.exports = { API_KEY: '$env:CORRECTIFY_API_KEY' };"
+            Write-Host 'secret.js injected from CORRECTIFY_API_KEY secret.'
+          } else {
+            Write-Host 'No CORRECTIFY_API_KEY secret set — backend features disabled in this build.'
+          }
+
+      - name: Build Windows installer
+        run: npm run dist:win
+
+      - name: Upload unsigned installer
+        id: upload-unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-installer
+          path: dist/*.exe
+          if-no-files-found: error
+
+  sign:
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+    steps:
+      - name: Submit signing request to SignPath
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: correctify
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: initial
+          github-artifact-id: ${{ needs.build.outputs.unsigned-artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed
+
+      - name: Attach signed installer to the release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: signed/*.exe
