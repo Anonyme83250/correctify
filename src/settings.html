@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;" />
+  <title>Correctify</title>
+  <style>
+    /* Thème repris du site Correctify */
+    :root {
+      --brand:#1fa2d6; --brand-d:#1382b3; --ink:#15212e; --muted:#566875;
+      --bg:#fff; --soft:#f3f9fc; --border:#e4eef4; --radius:16px;
+      --grad:linear-gradient(135deg,#2bb4e8,#1382c4);
+      --shadow:0 10px 30px rgba(20,130,196,.12);
+      --eyebrow-bg:#e3f4fc; --icon-bg:#e6f5fc;
+      --font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    }
+    * { box-sizing:border-box; }
+    html, body { height:100%; }
+    body {
+      margin:0; overflow:hidden; font-family:var(--font); color:var(--ink);
+      background:
+        radial-gradient(760px 280px at 50% -18%, var(--eyebrow-bg), transparent 70%),
+        var(--bg);
+      user-select:none;
+      /* colonne : barre de titre fixe + contenu défilant (petits écrans) */
+      display:flex; flex-direction:column;
+    }
+
+    /* Barre de titre custom (déplaçable), toujours visible en haut */
+    .titlebar {
+      flex:0 0 auto;
+      height:48px; display:flex; align-items:center; justify-content:space-between;
+      padding:0 8px 0 16px; -webkit-app-region:drag;
+    }
+    .brand { display:flex; align-items:center; gap:9px; font-weight:800; font-size:15px; color:var(--ink); }
+    .brand .logo {
+      width:26px; height:26px; border-radius:7px; object-fit:contain; display:block;
+    }
+    .winbtns { -webkit-app-region:no-drag; }
+    .close {
+      width:30px; height:30px; border:none; border-radius:8px; cursor:pointer;
+      background:transparent; color:var(--muted); font-size:15px; line-height:1; transition:.15s;
+    }
+    .close:hover { background:#fdecec; color:#e0556a; }
+
+    .wrap { padding:2px 18px 18px; flex:1 1 auto; overflow-y:auto; scrollbar-gutter:stable; }
+    /* barre de défilement discrète (visible uniquement si le contenu déborde) */
+    .wrap::-webkit-scrollbar { width:8px; }
+    .wrap::-webkit-scrollbar-thumb { background:#cfe0e9; border-radius:8px; }
+    .wrap::-webkit-scrollbar-thumb:hover { background:#aecbd9; }
+    .eyebrow {
+      display:inline-block; font-weight:700; font-size:10.5px; letter-spacing:.4px;
+      color:var(--brand-d); background:var(--eyebrow-bg); padding:4px 11px; border-radius:999px;
+    }
+    .sub { color:var(--muted); font-size:12px; margin:9px 0 14px; line-height:1.5; }
+
+    .card {
+      background:#fff; border:1px solid var(--border); border-radius:var(--radius);
+      padding:14px; margin-bottom:11px; box-shadow:0 1px 2px rgba(20,130,196,.04);
+    }
+    .lbl { display:flex; align-items:center; justify-content:space-between; }
+    label { font-size:12.5px; font-weight:700; color:var(--ink); }
+    .hint { color:var(--muted); font-size:11px; margin:7px 0 0; line-height:1.5; }
+    .hint a { color:var(--brand-d); cursor:pointer; font-weight:600; }
+    .hint a:hover { text-decoration:underline; }
+
+    .field { display:flex; gap:8px; margin-top:9px; }
+    input[type="text"], input[type="password"] {
+      width:100%; padding:10px 12px; border-radius:11px; border:1px solid var(--border);
+      background:#fff; color:var(--ink); font-size:12.5px; transition:.15s; user-select:text;
+    }
+    input::placeholder { color:#9fb0bc; }
+    input:focus { outline:none; border-color:var(--brand); box-shadow:0 0 0 3px rgba(31,162,214,.16); }
+
+    /* Eyebrow + bascule de langue sur la même ligne */
+    .topbar { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .langtoggle {
+      display:inline-flex; align-items:center; gap:2px; padding:2px;
+      background:#fff; border:1px solid var(--border); border-radius:999px; flex:0 0 auto;
+    }
+    .lang-opt {
+      border:none; background:transparent; cursor:pointer; line-height:1.4;
+      font-size:11px; font-weight:800; color:var(--muted);
+      padding:3px 11px; border-radius:999px; transition:.15s;
+    }
+    .lang-opt:hover { color:var(--brand-d); }
+    .lang-opt.active, .lang-opt.active:hover {
+      background:var(--grad); color:#fff; box-shadow:0 2px 6px rgba(20,130,196,.3);
+    }
+    /* champ raccourci en mode enregistrement */
+    #hotkey { text-align:center; font-weight:700; letter-spacing:.5px; cursor:pointer; caret-color:transparent; }
+    #hotkey.recording { border-color:var(--brand); background:var(--soft); box-shadow:0 0 0 3px rgba(31,162,214,.16); }
+
+    .icon-btn {
+      flex:0 0 auto; width:42px; border:1px solid var(--border); border-radius:11px;
+      background:#fff; color:var(--muted); cursor:pointer; font-size:14px; transition:.15s;
+    }
+    .icon-btn:hover { color:var(--brand-d); border-color:var(--brand); }
+
+    .pill { font-size:10.5px; padding:3px 10px; border-radius:999px; background:#fff; border:1px solid var(--border); color:var(--muted); }
+    .pill.on { color:var(--brand-d); border-color:#bfe4f4; background:var(--icon-bg); }
+
+    .toggle-row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .toggle-row + .toggle-row { margin-top:12px; padding-top:12px; border-top:1px solid var(--border); }
+    .toggle { position:relative; width:42px; height:24px; flex:0 0 auto; }
+    .toggle input { opacity:0; width:0; height:0; }
+    .slider { position:absolute; inset:0; background:#cfe0e9; border-radius:999px; transition:.2s; cursor:pointer; }
+    .slider::before { content:""; position:absolute; height:18px; width:18px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,.18); }
+    .toggle input:checked + .slider { background:var(--grad); }
+    .toggle input:checked + .slider::before { transform:translateX(18px); }
+
+    .actions { margin-top:4px; }
+    button.btn { width:100%; font-size:13.5px; font-weight:700; border-radius:12px; padding:12px 16px; border:none; cursor:pointer; transition:.15s; }
+    .primary { color:#fff; background:var(--grad); box-shadow:var(--shadow); }
+    .primary:hover { filter:brightness(1.05); }
+    .primary.ok { background:linear-gradient(135deg,#33d28f,#1b9e5a); box-shadow:0 8px 22px rgba(27,158,90,.35); }
+    code { background:var(--soft); border:1px solid var(--border); padding:1px 6px; border-radius:6px; font-size:11px; color:var(--brand-d); }
+
+    /* ----- Mode sombre (data-theme="dark" sur <html>, posé par settings.js) --- */
+    :root[data-theme="dark"] {
+      --brand-d:#7ad2f5; --ink:#e6eef5; --muted:#92a4b3;
+      --bg:#0e1620; --soft:#172530; --border:#27343f;
+      --shadow:0 10px 30px rgba(0,0,0,.5);
+      --eyebrow-bg:#102c3b; --icon-bg:#13303f;
+    }
+    :root[data-theme="dark"] .card { background:#16222e; box-shadow:0 1px 2px rgba(0,0,0,.3); }
+    :root[data-theme="dark"] input[type="text"],
+    :root[data-theme="dark"] input[type="password"] { background:#0f1a24; }
+    :root[data-theme="dark"] input::placeholder { color:#647888; }
+    :root[data-theme="dark"] .langtoggle,
+    :root[data-theme="dark"] .icon-btn,
+    :root[data-theme="dark"] .pill { background:#16222e; }
+    :root[data-theme="dark"] .pill.on { background:var(--icon-bg); }
+    :root[data-theme="dark"] .toggle .slider { background:#33444f; }
+    :root[data-theme="dark"] .wrap::-webkit-scrollbar-thumb { background:#2c3b48; }
+    :root[data-theme="dark"] .wrap::-webkit-scrollbar-thumb:hover { background:#3a4d5e; }
+    :root[data-theme="dark"] .close:hover { background:#3a1f23; color:#ff8a9a; }
+    /* Logo en blanc plein sur fond sombre (silhouette) */
+    :root[data-theme="dark"] .brand .logo { filter:brightness(0) invert(1); }
+  </style>
+</head>
+<body>
+  <div class="titlebar">
+    <div class="brand"><img class="logo" src="../assets/icon.png" alt="" /> Correctify</div>
+    <div class="winbtns"><button id="close" class="close" data-i18n-title="opt.closeTitle" title="Fermer">✕</button></div>
+  </div>
+
+  <div class="wrap">
+    <div class="topbar">
+      <span class="eyebrow" data-i18n="opt.eyebrow">CORRECTEUR ORTHOGRAPHIQUE IA</span>
+      <div class="langtoggle" role="group" aria-label="Langue / Language">
+        <button type="button" class="lang-opt" data-lang="fr">FR</button>
+        <button type="button" class="lang-opt" data-lang="en">EN</button>
+      </div>
+    </div>
+    <p class="sub" data-i18n="opt.sub">Sélectionnez du texte n'importe où, puis appuyez sur le raccourci pour le corriger en place.</p>
+
+    <div class="card">
+      <div class="lbl">
+        <label for="apiKey" data-i18n="opt.apiKeyLabel">Clé API</label>
+        <span id="provider" class="pill">non détecté</span>
+      </div>
+      <div class="field">
+        <input id="apiKey" type="password" placeholder="AIza… · sk-… · sk-ant-…" autocomplete="off" spellcheck="false" />
+        <button id="reveal" class="icon-btn" type="button" data-i18n-title="opt.revealTitle" title="Afficher/Masquer">👁</button>
+      </div>
+      <p class="hint">
+        <span data-i18n="opt.providerHint">Fournisseur détecté automatiquement. Obtenir une clé :</span>
+        <a data-url="https://aistudio.google.com/app/apikey">Gemini</a> ·
+        <a data-url="https://platform.openai.com/api-keys">OpenAI</a> ·
+        <a data-url="https://console.anthropic.com/settings/keys">Claude</a>
+      </p>
+    </div>
+
+    <div class="card">
+      <label for="hotkey" data-i18n="opt.hotkeyLabel">Raccourci global</label>
+      <div class="field">
+        <input id="hotkey" type="text" readonly spellcheck="false" data-i18n-placeholder="opt.hotkeyPlaceholder" placeholder="Cliquez puis tapez la combinaison" />
+      </div>
+      <p class="hint" data-i18n-html="opt.hotkeyHint">Cliquez dans le champ et appuyez sur vos touches (ex. <code>Ctrl</code> + <code>Alt</code> + <code>C</code>).</p>
+    </div>
+
+    <div class="card">
+      <div class="toggle-row">
+        <div><label data-i18n="opt.themeLabel">Mode sombre</label><p class="hint" style="margin-top:3px;" data-i18n="opt.themeHint">Affiche l'application sur un fond sombre, plus reposant le soir.</p></div>
+        <label class="toggle"><input id="darkMode" type="checkbox" /><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div><label data-i18n="opt.restoreLabel">Restaurer le presse-papier</label><p class="hint" style="margin-top:3px;" data-i18n="opt.restoreHint">Remet votre ancien contenu après correction.</p></div>
+        <label class="toggle"><input id="restoreClipboard" type="checkbox" /><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div><label data-i18n="opt.launchLabel">Lancer au démarrage</label><p class="hint" style="margin-top:3px;" data-i18n="opt.launchHint">Ouvre Correctify à l'ouverture de session.</p></div>
+        <label class="toggle"><input id="launchAtLogin" type="checkbox" /><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div><label data-i18n="opt.statsLabel">Rapports d'erreur anonymes</label><p class="hint" style="margin-top:3px;" data-i18n="opt.statsHint">En cas de problème, envoie un rapport anonyme pour aider à corriger les bugs. Aucun texte n'est envoyé.</p></div>
+        <label class="toggle"><input id="sendStats" type="checkbox" /><span class="slider"></span></label>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="save" class="btn primary" type="button" data-i18n="opt.save">Enregistrer</button>
+    </div>
+  </div>
+
+  <script src="settings.js"></script>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:;" />
+  <title>Correctify</title>
+  <style>
+    /* Thème repris de la fenêtre d'options */
+    :root {
+      --brand:#1fa2d6; --brand-d:#1382b3; --ink:#15212e; --muted:#566875;
+      --bg:#fff; --soft:#f3f9fc; --border:#e4eef4; --radius:16px;
+      --grad:linear-gradient(135deg,#2bb4e8,#1382c4);
+      --shadow:0 10px 30px rgba(20,130,196,.12);
+      --eyebrow-bg:#e3f4fc;
+      --font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    }
+    * { box-sizing:border-box; }
+    html, body { height:100%; }
+    body {
+      margin:0; overflow:hidden; font-family:var(--font); color:var(--ink);
+      background:
+        radial-gradient(760px 280px at 50% -18%, var(--eyebrow-bg), transparent 70%),
+        var(--bg);
+      user-select:none; display:flex; flex-direction:column;
+    }
+    .titlebar {
+      flex:0 0 auto; height:48px; display:flex; align-items:center; justify-content:space-between;
+      padding:0 8px 0 16px; -webkit-app-region:drag;
+    }
+    .brand { display:flex; align-items:center; gap:9px; font-weight:800; font-size:15px; color:var(--ink); }
+    .brand .logo { width:26px; height:26px; border-radius:7px; object-fit:contain; display:block; }
+    .winbtns { -webkit-app-region:no-drag; }
+    .close {
+      width:30px; height:30px; border:none; border-radius:8px; cursor:pointer;
+      background:transparent; color:var(--muted); font-size:15px; line-height:1; transition:.15s;
+    }
+    .close:hover { background:#fdecec; color:#e0556a; }
+
+    .wrap { padding:2px 20px 20px; flex:1 1 auto; overflow-y:auto; scrollbar-gutter:stable; }
+    .wrap::-webkit-scrollbar { width:8px; }
+    .wrap::-webkit-scrollbar-thumb { background:#cfe0e9; border-radius:8px; }
+    .wrap::-webkit-scrollbar-thumb:hover { background:#aecbd9; }
+
+    .eyebrow {
+      display:inline-block; font-weight:700; font-size:10.5px; letter-spacing:.4px;
+      color:var(--brand-d); background:var(--eyebrow-bg); padding:4px 11px; border-radius:999px;
+    }
+    .ver { color:var(--muted); font-size:11.5px; font-weight:600; margin:10px 0 0; }
+    .intro { color:var(--muted); font-size:12px; margin:6px 0 0; line-height:1.5; }
+    .sec .title { font-size:16px; line-height:1.3; margin:6px 0 10px; color:var(--ink); }
+
+    .card {
+      background:#fff; border:1px solid var(--border); border-radius:var(--radius);
+      padding:6px 16px; box-shadow:0 1px 2px rgba(20,130,196,.04);
+    }
+
+    /* Seul le contenu des nouveautés défile (jamais la fenêtre), plafonné à 400px.
+       En mode « historique » (clic tray) cette zone empile toutes les versions. */
+    .scroll { max-height:400px; overflow-y:auto; scrollbar-gutter:stable; }
+    .scroll::-webkit-scrollbar { width:8px; }
+    .scroll::-webkit-scrollbar-thumb { background:#cfe0e9; border-radius:8px; }
+    .scroll::-webkit-scrollbar-thumb:hover { background:#aecbd9; }
+    .sec + .sec { margin-top:22px; }
+    ul { margin:0; padding:0; list-style:none; }
+    li { position:relative; padding:9px 0 9px 20px; font-size:12.5px; line-height:1.5; color:#3a4a57; }
+    li + li { border-top:1px solid var(--border); }
+    li::before { content:""; position:absolute; left:3px; top:15px; width:6px; height:6px; border-radius:50%; background:var(--brand); }
+
+    .actions { margin-top:16px; }
+    button.btn {
+      width:100%; font-size:13.5px; font-weight:700; border-radius:12px; padding:12px 16px;
+      border:none; cursor:pointer; color:#fff; background:var(--grad); box-shadow:var(--shadow); transition:.15s;
+    }
+    button.btn:hover { filter:brightness(1.05); }
+
+    /* ----- Mode sombre (data-theme="dark" sur <html>, posé via le payload) ---- */
+    :root[data-theme="dark"] {
+      --brand-d:#7ad2f5; --ink:#e6eef5; --muted:#92a4b3;
+      --bg:#0e1620; --soft:#172530; --border:#27343f;
+      --shadow:0 10px 30px rgba(0,0,0,.5);
+      --eyebrow-bg:#102c3b;
+    }
+    :root[data-theme="dark"] .card { background:#16222e; box-shadow:0 1px 2px rgba(0,0,0,.3); }
+    :root[data-theme="dark"] li { color:#c4d2dd; }
+    :root[data-theme="dark"] .wrap::-webkit-scrollbar-thumb,
+    :root[data-theme="dark"] .scroll::-webkit-scrollbar-thumb { background:#2c3b48; }
+    :root[data-theme="dark"] .wrap::-webkit-scrollbar-thumb:hover,
+    :root[data-theme="dark"] .scroll::-webkit-scrollbar-thumb:hover { background:#3a4d5e; }
+    :root[data-theme="dark"] .close:hover { background:#3a1f23; color:#ff8a9a; }
+    /* Logo en blanc plein sur fond sombre (silhouette) */
+    :root[data-theme="dark"] .brand .logo { filter:brightness(0) invert(1); }
+  </style>
+</head>
+<body>
+  <div class="titlebar">
+    <div class="brand"><img class="logo" src="../assets/icon.png" alt="" /> Correctify</div>
+    <div class="winbtns"><button id="close" class="close" title="Fermer">✕</button></div>
+  </div>
+
+  <div class="wrap">
+    <span class="eyebrow" id="eyebrow">NOUVEAUTÉS</span>
+    <p class="intro" id="intro"></p>
+    <div class="scroll" id="scroll"></div>
+    <div class="actions"><button id="ok" class="btn" type="button">J'ai compris</button></div>
+  </div>
+
+  <script>
+    (function () {
+      // L'API sûre exposée par preload.js (fermeture + redimensionnement).
+      var api = window.correctify || {};
+      function close() { if (api.closeWhatsNew) api.closeWhatsNew(); }
+
+      // Payload localisé passé via le hash : { eyebrow, version, intro, title, points, button, closeTitle }.
+      var d = {};
+      try { d = JSON.parse(decodeURIComponent((location.hash || "").slice(1)) || "{}"); } catch (e) { /* rien */ }
+
+      // Thème (clair / sombre) transmis par le main : bascule toutes les couleurs.
+      document.documentElement.setAttribute("data-theme", d.theme === "dark" ? "dark" : "light");
+
+      if (d.eyebrow) document.getElementById("eyebrow").textContent = d.eyebrow;
+      var introEl = document.getElementById("intro");
+      if (d.intro) introEl.textContent = d.intro; else introEl.style.display = "none";
+
+      // Une ou plusieurs versions : [{ version, title, points }]. Repli sur
+      // l'ancien format plat { version, title, points } si « sections » absent.
+      var sections = d.sections || (d.title ? [{ version: d.version, title: d.title, points: d.points }] : []);
+      var scroll = document.getElementById("scroll");
+      sections.forEach(function (s) {
+        var sec = document.createElement("section");
+        sec.className = "sec";
+
+        if (s.version) {
+          var ver = document.createElement("p");
+          ver.className = "ver";
+          ver.textContent = s.version;
+          sec.appendChild(ver);
+        }
+        var h = document.createElement("h2");
+        h.className = "title";
+        h.textContent = s.title || "";
+        sec.appendChild(h);
+
+        var card = document.createElement("div");
+        card.className = "card";
+        var ul = document.createElement("ul");
+        (s.points || []).forEach(function (p) {
+          var li = document.createElement("li");
+          li.textContent = String(p); // textContent : aucune injection HTML possible
+          ul.appendChild(li);
+        });
+        card.appendChild(ul);
+        sec.appendChild(card);
+        scroll.appendChild(sec);
+      });
+
+      var okBtn = document.getElementById("ok");
+      if (d.button) okBtn.textContent = d.button;
+      var closeBtn = document.getElementById("close");
+      if (d.closeTitle) closeBtn.title = d.closeTitle;
+
+      closeBtn.addEventListener("click", close);
+      okBtn.addEventListener("click", close);
+      document.addEventListener("keydown", function (e) { if (e.key === "Escape") close(); });
+
+      // Ajuste la fenêtre à la hauteur réelle du contenu (le handler côté main
+      // redimensionne, centre puis affiche la fenêtre).
+      function measure() {
+        var t = document.querySelector(".titlebar");
+        var w = document.querySelector(".wrap");
+        return Math.ceil((t ? t.offsetHeight : 0) + (w ? w.scrollHeight : document.body.scrollHeight));
+      }
+      if (api.resizeToContent) setTimeout(function () { api.resizeToContent(measure()); }, 30);
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:;" />
+  <style>
+    html, body { margin:0; height:100%; background:transparent; overflow:hidden;
+      font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; -webkit-user-select:none; cursor:default; }
+    .panel {
+      margin:6px; padding:12px 14px; background:rgba(255,255,255,.99);
+      border:1px solid #e4eef4; border-radius:14px; box-shadow:0 12px 34px rgba(20,130,196,.22);
+    }
+    .head { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+    .logo { width:20px; height:20px; border-radius:6px; flex:0 0 auto; }
+    .brand { font-size:13px; font-weight:800; color:#15212e; }
+    .badge {
+      margin-left:auto; display:inline-flex; align-items:center; gap:5px;
+      font-size:11px; font-weight:700; color:#1b9e5a; background:#eafaf1;
+      border:1px solid #c7eed5; padding:2px 9px; border-radius:999px;
+    }
+    .badge .check {
+      width:14px; height:14px; flex:0 0 auto; border-radius:50%; color:#fff;
+      background:linear-gradient(135deg,#33d28f,#1b9e5a); display:grid; place-items:center; font-size:9px; font-weight:700;
+    }
+    ul { margin:0; padding:0; list-style:none; }
+    li { position:relative; padding:3px 0 3px 16px; font-size:12px; line-height:1.45; color:#3a4a57; }
+    li::before { content:""; position:absolute; left:2px; top:9px; width:5px; height:5px; border-radius:50%; background:#1fa2d6; }
+
+    /* ----- Mode sombre (data-theme="dark" sur <html>, posé via le payload) ---- */
+    :root[data-theme="dark"] .panel { background:rgba(22,34,46,.99); border-color:#27343f; box-shadow:0 12px 34px rgba(0,0,0,.5); }
+    :root[data-theme="dark"] .brand { color:#e6eef5; }
+    :root[data-theme="dark"] .badge { color:#5fe0a0; background:#10241a; border-color:#1f4d33; }
+    :root[data-theme="dark"] li { color:#c4d2dd; }
+    :root[data-theme="dark"] .logo { filter:brightness(0) invert(1); }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <div class="head">
+      <img class="logo" src="../assets/icon.png" alt="" />
+      <span class="brand">Correctify</span>
+      <span class="badge"><span class="check">✓</span> <span id="badge">Corrigé</span></span>
+    </div>
+    <ul id="list"></ul>
+  </div>
+  <script>
+    try {
+      // Payload localisé : { badge, points }.
+      var d = JSON.parse(decodeURIComponent((location.hash || "").slice(1)) || "{}");
+      document.documentElement.setAttribute("data-theme", d.theme === "dark" ? "dark" : "light");
+      if (d.badge) document.getElementById("badge").textContent = d.badge;
+      var ul = document.getElementById("list");
+      (d.points || []).forEach(function (p) {
+        var li = document.createElement("li");
+        li.textContent = String(p);   // textContent : aucune injection HTML possible
+        ul.appendChild(li);
+      });
+    } catch (e) { /* rien */ }
+  </script>
+</body>
+</html>

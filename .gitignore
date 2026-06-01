@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+out/
+build/
+
+# Secrets — local backend key, never commit (see src/secret.example.js)
+src/secret.js
+.env
+.env.*
+
+# Personal build/deploy scripts (contain local paths & private infra)
+*.bat
+
+# Source artwork (large binary)
+*.psd
+
+# Logs & debug
+*.log
+npm-debug.log*
+
+# OS / editor junk
+Thumbs.db
+ehthumbs.db
+.DS_Store
+desktop.ini
+*.swp
+.idea/
+.vscode/

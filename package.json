@@ -1,0 +1,46 @@
+{
+  "name": "correctify-desktop",
+  "productName": "Correctify",
+  "version": "1.5.4",
+  "description": "Correcteur IA instantané partout sur votre bureau : sélectionnez du texte, un raccourci, et il est corrigé en place.",
+  "author": "Anonyma",
+  "license": "MIT",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.anonyma.correctify",
+    "productName": "Correctify",
+    "files": ["src/**/*", "assets/**/*"],
+    "asarUnpack": ["assets/**"],
+    "publish": [
+      { "provider": "generic", "url": "https://correctify.fr/downloads/" }
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": ["dmg"],
+      "icon": "assets/icon.png"
+    },
+    "win": {
+      "target": ["nsis"],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerLanguages": ["en_US", "fr_FR"],
+      "displayLanguageSelector": true
+    }
+  }
+}

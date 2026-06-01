@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:;" />
+  <style>
+    html, body { margin:0; height:100%; background:transparent; overflow:hidden;
+      font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; -webkit-user-select:none; cursor:default; }
+    .pill {
+      display:flex; align-items:center; gap:9px; height:48px; margin:6px;
+      padding:0 15px; background:rgba(255,255,255,.98);
+      border:1px solid #e4eef4; border-radius:14px;
+      box-shadow:0 10px 30px rgba(20,130,196,.22);
+    }
+    .logo { width:22px; height:22px; flex:0 0 auto; }
+    .txt { font-size:12.5px; color:#15212e; white-space:nowrap; }
+    .txt b { font-weight:800; }
+    .txt .sub { color:#6b7a88; }
+    .right { margin-left:auto; display:flex; align-items:center; gap:9px; flex:0 0 auto; }
+    .spin {
+      width:16px; height:16px; flex:0 0 auto; border-radius:50%;
+      border:3px solid #cfe9f6; border-top-color:#1fa2d6; animation:spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    /* Mode « en attente » (report d'application) : pas de spinner, une pastille fixe. */
+    .wait {
+      width:16px; height:16px; flex:0 0 auto; border-radius:50%;
+      background:#1fa2d6; animation:pulse 1.4s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity:.35; } 50% { opacity:1; } }
+    /* Bouton Annuler (mode correction en cours uniquement). */
+    .cancel {
+      flex:0 0 auto; border:1px solid #e4eef4; background:#fff; color:#566875;
+      font-size:11px; font-weight:700; padding:5px 11px; border-radius:999px; cursor:pointer;
+      font-family:inherit; line-height:1; transition:.15s;
+    }
+    .cancel:hover { color:#e0556a; border-color:#f3d2d7; background:#fff5f5; }
+    .cancel:disabled { opacity:.5; cursor:default; }
+    .cancel[hidden] { display:none; }
+
+    /* ----- Mode sombre (data-theme="dark" sur <html>, posé via le payload) ---- */
+    :root[data-theme="dark"] .pill { background:rgba(22,34,46,.98); border-color:#27343f; box-shadow:0 10px 30px rgba(0,0,0,.5); }
+    :root[data-theme="dark"] .txt { color:#e6eef5; }
+    :root[data-theme="dark"] .txt .sub { color:#92a4b3; }
+    :root[data-theme="dark"] .spin { border-color:#24323f; border-top-color:#36b8ec; }
+    :root[data-theme="dark"] .cancel { border-color:#27343f; background:#0f1a24; color:#92a4b3; }
+    :root[data-theme="dark"] .cancel:hover { color:#ff8a9a; border-color:#5a2a30; background:#241318; }
+    :root[data-theme="dark"] .logo { filter:brightness(0) invert(1); }
+  </style>
+</head>
+<body>
+  <div class="pill">
+    <img class="logo" src="../assets/icon.png" alt="" />
+    <span class="txt"><b>Correctify</b> <span class="sub" id="sub"></span></span>
+    <span class="right">
+      <span class="spin" id="ind"></span>
+      <button class="cancel" id="cancel" type="button" hidden></button>
+    </span>
+  </div>
+  <script>
+    // Payload localisé passé par le main : { text, pending, cancel }.
+    try {
+      var d = JSON.parse(decodeURIComponent((location.hash || "").slice(1)) || "{}");
+      document.documentElement.setAttribute("data-theme", d.theme === "dark" ? "dark" : "light");
+      if (d.text) document.getElementById("sub").textContent = d.text;
+      if (d.pending) document.getElementById("ind").className = "wait"; // pastille fixe au lieu du spinner
+
+      // Bouton Annuler : seulement pendant la correction (pas en mode attente).
+      var btn = document.getElementById("cancel");
+      if (d.cancel && !d.pending) {
+        btn.textContent = d.cancel;
+        btn.hidden = false;
+        btn.addEventListener("click", function () {
+          btn.disabled = true; // évite le double-clic
+          if (window.correctify && window.correctify.cancelCorrection) window.correctify.cancelCorrection();
+        });
+      }
+    } catch (e) { /* rien */ }
+  </script>
+</body>
+</html>
