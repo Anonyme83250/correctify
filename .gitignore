@@ -21,6 +21,10 @@ src/secret.js
 *.log
 npm-debug.log*
 
+# AI assistant context (ne pas publier)
+CLAUDE.md
+.claude/
+
 # OS / editor junk
 Thumbs.db
 ehthumbs.db
