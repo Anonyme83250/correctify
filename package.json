@@ -1,0 +1,40 @@
+{
+  "name": "correctify-desktop",
+  "productName": "Correctify",
+  "version": "1.0.0",
+  "description": "Select text anywhere on your desktop, press a shortcut, and it is corrected in place by the AI provider of your choice.",
+  "author": "Anthony LACROUX",
+  "license": "MIT",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.correctify.desktop",
+    "productName": "Correctify",
+    "files": ["src/**/*", "assets/**/*"],
+    "asarUnpack": ["assets/**"],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": ["dmg"],
+      "icon": "assets/icon.png"
+    },
+    "win": {
+      "target": ["nsis"],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerLanguages": ["en_US", "fr_FR"],
+      "displayLanguageSelector": true
+    }
+  }
+}
