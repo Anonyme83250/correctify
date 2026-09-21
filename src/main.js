@@ -7,7 +7,7 @@ const { exec } = require("child_process");
 const { loadSettings, saveSettings, fileExists } = require("./settings-store");
 const { generateCorrection, buildPrompt, detectLanguage, parseCorrection, describeError } = require("./ai");
 const winHelper = require("./win-helper"); // host PowerShell persistant (Windows) : UIA + clavier
-const { buildCorrectedHtml, diffWordEdits } = require("./rich-paste"); // transfert de mise en forme (HTML) + éditions diff sur plage Word (COM)
+const { buildCorrectedHtml, restoreEmojiText, diffWordEdits } = require("./rich-paste"); // transfert de mise en forme (HTML) + emojis-image + éditions diff sur plage Word (COM)
 const { t, STRINGS, LANGS } = require("./i18n");
 const { dbg, dbgv, preview } = require("./debug"); // journalisation (cf. debug.js)
 
@@ -326,8 +326,10 @@ function isPlainTextApp(proc) {
 // gardant la mise en forme (cf. rich-paste.js) et on écrit un flavor HTML + texte ;
 // Word/Outlook/Thunderbird/navigateurs collent alors la version riche. Sinon
 // (source en texte brut), on écrit du texte brut. Renvoie true si HTML utilisé.
-function writeCorrectedRich(corrected, originalHtml) {
-  const html = buildCorrectedHtml(originalHtml, corrected);
+// `sourceText` = le texte brut envoyé à l'IA : sert à aligner sa représentation des
+// sauts de ligne (Teams les double) sur celle du HTML avant le diff.
+function writeCorrectedRich(corrected, originalHtml, sourceText) {
+  const html = buildCorrectedHtml(originalHtml, corrected, sourceText);
   if (html) {
     try { clipboard.write({ text: corrected, html }); return true; } catch { /* repli texte brut */ }
   }
@@ -489,6 +491,13 @@ async function correctSelection() {
     if (captured && isPlainTextApp(captured.proc)) selectedHtml = "";
 
     dbgv("HTML sélection: " + preview(selectedHtml));
+    // Diagnostic : les OBJETS de la sélection (emojis-image de Teams…), non-ASCII
+    // échappé en \uXXXX pour lire leurs attributs exacts dans le log.
+    if (selectedHtml) {
+      const objs = selectedHtml.match(/<readonly\b[^>]*>[\s\S]*?<\/readonly>|<img\b[^>]*>/gi);
+      if (objs) dbgv("objets sélection (" + objs.length + ") : " + objs.slice(0, 4).map((t) =>
+        t.slice(0, 600).replace(/[^\x20-\x7E]/g, (ch) => "\\u" + ch.charCodeAt(0).toString(16).padStart(4, "0"))).join(" || "));
+    }
 
     // Repli ultime : le texte lu DIRECTEMENT à la capture (Word COM, champ natif via
     // WM_GETTEXT, ou UIA) — sauve la mise quand le Ctrl+C simulé n'a rien donné.
@@ -511,6 +520,13 @@ async function correctSelection() {
     }
     dbg("SELECTION OK " + preview(selected));   // ligne unique visible en mode minimal
 
+    // Emojis copiés en IMAGE (Teams…) : le texte brut du presse-papier porte leur
+    // TITRE (« Visage souriant avec yeux rieurs ») à la place de l'emoji → on remet
+    // l'emoji avant l'appel IA (cf. rich-paste.js). `selected` reste le texte copié
+    // tel quel : c'est lui que le helper compare/recherche pour re-sélectionner.
+    const aiText = restoreEmojiText(selected, selectedHtml);
+    if (aiText !== selected) dbgv("emojis-image remis dans le texte envoyé à l'IA : " + preview(aiText));
+
     showHud(); // indicateur persistant pendant l'appel IA (avec bouton Annuler)
 
     // Appel IA interruptible : « Annuler » déclenche currentAbort.abort().
@@ -519,8 +535,8 @@ async function correctSelection() {
     // ("?" = indécise → le modèle tranche). Tracée ici parce que c'est la
     // première chose à vérifier quand une correction revient mal traduite.
     const forced = FORCE_LANG_KEYS.includes(settings.forceLang) ? settings.forceLang : "auto";
-    dbgv("langue de correction : " + (forced === "auto" ? (detectLanguage(selected) || "?") + " (détectée)" : forced + " (imposée)"));
-    dbgv("appel IA (" + settings.apiKind + " @ " + settings.baseUrl + " / " + settings.model + ") sur " + preview(selected) + "…");
+    dbgv("langue de correction : " + (forced === "auto" ? (detectLanguage(aiText) || "?") + " (détectée)" : forced + " (imposée)"));
+    dbgv("appel IA (" + settings.apiKind + " @ " + settings.baseUrl + " / " + settings.model + ") sur " + preview(aiText) + "…");
     const aiStart = Date.now();
     const aiResult = await generateCorrection(
       {
@@ -529,7 +545,7 @@ async function correctSelection() {
         apiKey: settings.apiKey,
         model: settings.model
       },
-      buildPrompt(selected, settings.tone, { forceLang: settings.forceLang, uiLang: settings.lang }),
+      buildPrompt(aiText, settings.tone, { forceLang: settings.forceLang, uiLang: settings.lang }),
       { signal: currentAbort.signal }
     );
     // Annulé pendant l'appel : on restaure le presse-papier et on s'arrête net.
@@ -544,7 +560,7 @@ async function correctSelection() {
       return;
     }
 
-    const usedHtml = writeCorrectedRich(corrected, selectedHtml);
+    const usedHtml = writeCorrectedRich(corrected, selectedHtml, aiText);
     dbgv("presse-papier corrigé écrit (mise en forme html=" + usedHtml + ")");
     await sleep(120);
 
@@ -554,7 +570,7 @@ async function correctSelection() {
     // `originalHtml` pour ré-affirmer le collage riche en cas de report.
     handedOff = true;
     await applyOrDefer({
-      target, corrected, summary, previousClipboard, original: selected, originalHtml: selectedHtml,
+      target, corrected, summary, previousClipboard, original: selected, originalHtml: selectedHtml, aiText,
       // Texte BRUT de la plage Word/Outlook figée (renvoyé par la capture) : les
       // éditions diff du chemin COM sont calculées sur CE texte-là (cf. applyNow),
       // pas sur le presse-papier → offsets valides par construction.
@@ -633,7 +649,7 @@ async function applyNow(ctx, immediate = false) {
     // Ré-affirme le texte corrigé : en report, l'utilisateur a pu copier autre
     // chose pendant l'attente → on garantit que c'est bien la correction collée
     // (avec la mise en forme si on a le HTML d'origine).
-    writeCorrectedRich(ctx.corrected, ctx.originalHtml);
+    writeCorrectedRich(ctx.corrected, ctx.originalHtml, ctx.aiText);
     await sleep(60);
     let ok = false;
     // Éditions minimales (diff) : le chemin COM Word/Outlook ne remplace QUE les
